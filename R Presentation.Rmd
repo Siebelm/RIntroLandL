@@ -1,0 +1,226 @@
+---
+title: "R Presentation"
+author: "Michael Siebel"
+date: "January 8, 2018"
+output: html_document
+---
+
+
+## Notes
+
+An R Markdown file is better than a Stata do file for adding notes to your syntax.
+
+## Vectors
+
+Vectors are a flexible object that can be used outside the context of a data frame.
+
+Arrows assign information to an object (most languages use an equal sign).  Note: assignment is based on the arrows dirction.
+
+This:
+x <- 2
+...is the same as:
+2 -> x
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Assign a string
+x <- "y"
+x
+
+# Assign answer as a "double" (float)
+y <- 2+2
+y
+
+# Assign the components of an object to another object
+x <- y
+x
+
+# Use the Concatnate function to assign multiple strings
+x <- c("Apples", "Oranges", "Bananas", "Peaches", "Tomatoes", "Plums")
+x
+
+x <- c(3, 7, 2, 4, 9, 7, 6, 8, 2)
+x.min <- min(x)
+x.max <- max(x)
+?paste #ask R what the paste function is
+paste("The min is", x.min, "and the max is", x.max)
+
+```
+
+## Loop over Characters
+
+Loops can be used over vectors as well as variables.  By interpreting strings instead of variables, loops can be used to compare variable names from different iterations of the same survey to see which variables are on both iterations.
+
+Vectors do not need to be the same length in order to perform an operation on (unlike how variables need the same amount of rows in a spreadsheet-style dataframe)
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+fruit <- c("Apples", "Oranges", "Bananas", "Peaches", "Tomatoes", "Plums")
+vegetables <- c("Carrots", "Radish", "Onions", "Tomatoes", "Squash", "Cabbage", "Seaweed")
+
+ctr <- 1 #counter
+match <- c() #initate vector (loop is appending to it)
+for (i1 in fruit) {
+  for (i2 in vegetables) {
+    if (i1 == i2) {
+      match[[ctr]] <- i1 
+      #the double brackets specify the position of component within the vector as opposed to the component itself
+      ctr <- ctr + 1
+      #count the loop iteration to define the component of the vector we will append to
+    }
+  }
+}
+
+### List number of fruits and vegetables and any matches
+paste("Number of Fruits:", length(fruit))
+paste("Number of Vegetables:", length(vegetables))
+paste("Matching in Fruit and Vegetables:", length(match), "which is", match)
+
+```
+
+## Dataset Cleaning
+
+R has more tools to analyze a dataset and display the resulting output.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Remember to use double backslashes or single forward slashes
+setwd("C:\\Users\\Siebelm\\Documents\\4 FMG\\R Presentation")
+# An CSV file is separated by commas
+# Excel files are separated by semicolons
+# Txt files are sometimes separated with a space (" ") or a tab ("/t"")
+dataset <- read.csv("winequality-red.csv", sep=",")
+
+colnames(dataset) #check variable names
+head(dataset, 10) #check first 10 rows (six is default)
+
+```
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Rows and Columns
+dim(dataset)
+paste("Dataset has", dim(dataset)[1], "rows and", dim(dataset)[2], "columns.")
+
+```
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# The percentage of data missing
+(sum(is.na(dataset))/(nrow(dataset)*ncol(dataset)))*100
+paste("The percentage of data missing",round((sum(is.na(dataset))/(nrow(dataset)*ncol(dataset)))*100, digits=2),"%")
+```
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Number of duplicate rows
+nrow(dataset) - nrow(unique(dataset))
+paste("The number of duplicate rows are", nrow(dataset) - nrow(unique(dataset)))
+```
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# R defines three types of variables: Numeric, Factor, and Character
+names_numeric <- names(dataset)[which(sapply(dataset, is.numeric))]
+paste("Number of Numeric variables are ", length(names_numeric)) # four
+
+names_fact <- names(dataset)[which(sapply(dataset, is.factor))]
+paste("Number of Factor variables are ", length(names_fact)) # zero
+
+names_char <- names(dataset)[which(sapply(dataset, is.character))]
+paste("Number of Character variables are ", length(names_char)) # zero
+```
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# R's dataframe hierarchy is: object "$" component within object "[" components within components "]"
+# In other words: dataset "$" variable "[" observations "]"
+# Or you can do: dataset "[" row "," column "]"
+print("First five obs of quality:")
+dataset$quality[1:5]
+
+print("First five obs of residual sugar and alcohol percentage:")
+dataset[1:5,1]
+dataset[1:5,3]
+```
+
+## OLS Regression
+
+R can simplify the output for regressions.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Correlation
+library(Hmisc)
+rcorr(dataset$density, dataset$alcohol)[1] 
+```
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Remove variable in a new dataset
+dataset2 <- dataset #create copy of dataset
+dataset2$density <- NULL #remove variable in new dataset (due to possible multicolinearity)
+
+# OLS Regression
+model.OLS <- lm(quality~., data = dataset2) # "." means all remaining varible
+summary(model.OLS) #display saved results as in table output
+```
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Different displays of output
+cat(paste("", "Output 1", "", sep="\n"))
+summary(model.OLS)[4]
+
+cat(paste("", "Output 2", "", sep="\n"))
+round(summary(model.OLS)$coefficients ,2)
+
+cat(paste("", "Output 3", "", sep="\n"))
+round(coef(model.OLS),2)
+
+```
+
+## Logistic Regression
+
+Recoding variables is not necessarily as intuitive as in SAS.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Recode as Binary
+dataset2$quality.dum[dataset2$quality < 6] <- 0 #create variable quality.dum and assign it 0 if quality < 6
+dataset2$quality.dum[dataset2$quality >= 6] <- 1 #assign 1 to newly created quality.dum if quality >= 6
+dataset2$quality <- NULL #remove former variable
+
+# Logistic Regression Odds Ratios
+model.logit <- glm(quality.dum~., family = binomial(link = "logit"), data = dataset2) 
+summary(model.logit)
+round(exp(coef(model.logit)),2)
+
+```
+
+R can use functions withing the code for predicted probabilities to define changes in the independent variables.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+# Range of Alcohol Content
+print("Alcohol Content")
+summary(dataset2$alcohol)
+
+# High Alcohol
+highalcohol.pp <- data.frame(residual.sugar=mean(dataset2$residual.sugar), alcohol=quantile(dataset2$alcohol, c(.75)))
+highalcohol.pp.pred <- predict(model.logit, highalcohol.pp, type='response')
+
+# Low Alcohol
+lowalcohol.pp <- data.frame(residual.sugar=mean(dataset2$residual.sugar), alcohol=quantile(dataset2$alcohol, c(.25))) 
+lowalcohol.pp.pred <- predict(model.logit, lowalcohol.pp, type='response')
+
+# Predicted Probabilities
+print("Probilities of Obtaining High Quality Wine")
+paste("- Wine with high alcohol content: ", round(highalcohol.pp.pred,2))
+paste("- Wine with low alcohol content: ", round(lowalcohol.pp.pred,2))
+
+```
+
+## Train vs Test datasets
+
+Here, I just want to demonstrate the benefits of being able to easily use multiple datasets at the same time.
+
+```{r, echo=TRUE, warning=FALSE, message=FALSE}
+### Train v Test ###
+dataset2_random <- dataset2[sample(1:nrow(dataset2)), ]
+train <- dataset2_random[1:799, ]
+test <- dataset2_random[800:1599, ]
+train.model <- glm(quality.dum~., family = binomial(link = "logit"), data = train)
+summary(train.model)
+
+library(ROCR)
+pred.model <- predict.glm(train.model, test, type='response')
+newpred <- prediction(pred.model, test$quality.dum)
+newpred.performance <- performance(newpred, measure = "tpr",x.measure = "fpr")
+plot(newpred.performance)
+abline(a=0, b= 1)
+AUC <- performance(newpred, measure = "auc")
+AUC 
+print("The train dataset correctly predicted 76% true postives of the test dataset")
+
+```
